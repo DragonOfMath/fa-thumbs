@@ -13,7 +13,7 @@ function defaults() {
 	}
 }
 
-module.exports = function thumbify(directories = [], options = {}) {
+module.exports = async function thumbify(directories = [], options = {}) {
 	if (typeof(directories) === 'undefined') {
 		throw 'Directories must be a string or array of strings containing the locations of files or folders.';
 	}
@@ -60,7 +60,8 @@ module.exports = function thumbify(directories = [], options = {}) {
 	console.log('Total: %d', images.length);
 	
 	console.log('-------- Processing --------');
-	images.forEachAsync((imgDir,i) => {
+	for (var i = 0, imgDir; i < images.length; i++) {
+		imgDir = images[i];
 		var thumbName = FilePromise.getName(imgDir).replace(IMAGE_REGEX, function (dir, name, type) {
 			switch (options.mime) {
 				case Jimp.MIME_JPEG:
@@ -73,13 +74,16 @@ module.exports = function thumbify(directories = [], options = {}) {
 			return name + options.suffix + type;
 		});
 		var thumbDir  = FilePromise.join(options.output, thumbName);
-		console.log('[%d/%d] %s', i+1, images.length, imgDir);
-		return Jimp.read(imgDir)
-		.then(image => image.scaleToFit(options.width, options.height).quality(options.quality).write(thumbDir))
-		.catch(console.error);
-	})
-	.then(() => {
-		console.log('Finished.');
-		FileExplorer.goto(options.output);
-	});
+		console.log('[%d/%d] %s', i+1, images.length, thumbDir);
+		try {
+			var image = await Jimp.read(imgDir);
+			image.scaleToFit(options.width, options.height);
+			image.quality(options.quality);
+			await image.write(thumbDir);
+		} catch (e) {
+			console.error(e);
+		}
+	}
+	console.log('Finished.');
+	FileExplorer.goto(options.output);
 };
